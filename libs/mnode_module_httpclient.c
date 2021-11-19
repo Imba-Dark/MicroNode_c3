@@ -6,7 +6,8 @@
 #include "stdlib.h"
 #include "string.h"
 #include "esp_log.h"
-
+#include "mnode_debug.h"
+#define TEST
 static const char *TAG = "MNODE_HTTPCLIENT";
 
 void request_callback_func(const void *args, uint32_t size) {
@@ -328,6 +329,9 @@ void reqeuset_get_config(request_config_t *config, jerry_value_t requestObj)
             if (strcmp(method_str, "POST") == 0) {
                 config->method = HTTP_METHOD_POST;
             }
+            else if(strcmp(method_str, "GEt")==0){
+                config->method = HTTP_METHOD_GET;
+            }
             free(method_str);
         }
     }
@@ -345,6 +349,86 @@ void reqeuset_get_config(request_config_t *config, jerry_value_t requestObj)
     request_get_header(config->esp_http_client, js_header);
 
     jerry_release_value(js_header);
+}
+
+DECLARE_HANDLER(getadd){
+    
+    char * stradd;
+    char * port;
+    const struct addrinfo hints={
+    .ai_family = AF_INET, //指定返回地址的协议簇，AF_INET(IPv4), AF_INET6(IPv6), AF_UNSPEC(v4 and v6)
+    .ai_socktype = SOCK_STREAM, //设定返回地址的socket类型，流式套接字
+    };
+    int stradd_length = jerry_get_string_length(args[0]);
+    int port_length = jerry_get_string_length(args[1]);
+    stradd = malloc(stradd_length+1);
+    port = malloc(port_length+1);
+#ifdef HTTP_DEBUG
+    printf("Enter in getadd\n");
+#endif
+    jerry_string_to_char_buffer(args[0], (jerry_char_t *)stradd, stradd_length);
+    jerry_string_to_char_buffer(args[1], (jerry_char_t *)port, port_length);
+    stradd[stradd_length]=0;
+    port[port_length]=0;
+    struct addrinfo * result;
+    int err;
+#ifdef HTTP_DEBUG
+    printf("straddr is :%s ,port is : %s\n",stradd, port);
+#endif
+    err = getaddrinfo(stradd,port,&hints,&result);
+    if(err != 0){
+        printf("getaddrinfo err: %d \n",err);
+    }
+
+    char buf[100];
+    struct sockaddr_in *ipv4 = NULL;
+    if(result->ai_family == AF_INET){
+        ipv4 = (struct sockaddr_in *)result->ai_addr;
+        inet_ntop(result->ai_family, &ipv4->sin_addr, buf, sizeof(buf));
+        printf("[ipv4]%s [port]%d \n",buf,ntohs(ipv4->sin_port));
+        
+    }
+    else{
+        printf("got IPv4 err !!!\n");
+    }
+#ifdef TEST
+    int tcp_client = socket(AF_INET, SOCK_STREAM,0);
+    if(-1 == tcp_client){
+        perror("socket");
+        return;
+    }
+
+    err = connect(tcp_client, (const struct sockaddr *)ipv4, sizeof(*ipv4));
+    if(err < 0)
+        perror("send err");
+    else
+        printf("send size %d \n",err);
+
+    char sendbuf[]={"GEt / HTTP/1.1\n\n"};
+    err = send(tcp_client, sendbuf, strlen(sendbuf),0);
+    if(err < 0)
+        perror("connect err");
+    else
+        printf("connect success, ret = %d \n",err);
+
+    char recvbuff[100] = {0};
+    err = recv(tcp_client, recvbuff ,sizeof(recvbuff),0);
+    if(err < 0)
+        perror("recv err");
+    else
+        printf("recv size %d \n",err);
+
+    printf("Recvdata: \n%s \n",recvbuff);
+
+    close(tcp_client);
+#endif
+
+
+    free(stradd);
+    free(port);
+    freeaddrinfo(result);
+
+    return jerry_create_undefined();
 }
 
 DECLARE_HANDLER(request)
@@ -400,6 +484,7 @@ jerry_value_t mnode_init_http()
 {
     jerry_value_t js_requset = jerry_create_object();
     REGISTER_METHOD_NAME(js_requset, "request", request);
+    REGISTER_METHOD_NAME(js_requset, "getaddr", getadd);
     return (js_requset);
 }
 

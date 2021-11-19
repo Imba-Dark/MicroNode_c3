@@ -9,6 +9,11 @@
 #include "mnode_callback.h"
 #include "mnode_config.h"
 #include "freertos/FreeRTOS.h"
+#include "lwip/dns.h"
+#include "lwip/err.h"
+#include "lwip/sockets.h"
+#include "lwip/sys.h"
+#include "lwip/netdb.h"
 
 #include "esp_http_client.h"
 
@@ -41,6 +46,8 @@ typedef struct request_thread_info
     js_callback_func request_callback;
     js_callback_func close_callback;
 } request_tdinfo_t;
+
+
 
 int jerry_request_init(jerry_value_t obj);
 
