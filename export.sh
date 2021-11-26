@@ -1,3 +1,3 @@
 export MICRONODE=`pwd`
-export MKSPIFFS=`pwd`/../mkspiffs-0.2.3-esp-idf-osx
-source ./platforms/esp32/esp-idf/export.sh
+export MKSPIFFS=`pwd`/mkspiffs
+source /home/zihan/Software/esp/esp-idf-v4.4/export.sh
